@@ -1,5 +1,6 @@
 import datetime
 import discord
+import sqlite3
 
 class UsersReminders:
     def __init__(self, messageauthor): #username
@@ -18,3 +19,25 @@ class UsersReminders:
 
     def add(self, day, hour, minute, msg):
         self.dates[day].append([datetime.time(hour, minute), msg])
+
+        #==== On New Reminder ======================================================================================================================================
+        con = sqlite3.connect('DiscordReminders.db')
+
+        cur = con.cursor()
+
+        ReminderRecord = (str(self.messageauthor), day, hour, minute, msg)
+
+        cur.execute('INSERT INTO Reminders VALUES (?,?,?,?,?)', ReminderRecord)
+        con.commit()
+
+        for row in cur.execute('SELECT * FROM Reminders'):
+            # our reminder fields
+            RmUser = row[0]
+            RmDay = row[1]
+            RmHour = row[2]
+            RmMinute = row[3]
+            RmMessage = row[4]
+
+            print(RmUser +','+ RmDay +','+ RmHour +','+ RmMinute +','+ RmMessage)
+
+        #===========================================================================================================================================================

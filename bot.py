@@ -4,7 +4,31 @@ import time
 import datetime
 import asyncio
 from UsersReminders import UsersReminders
+import sqlite3
 #from discord.ext import commands
+
+#==== On Program Startup ===================================================================================================================================
+con = sqlite3.connect('DiscordReminders.db')
+
+cur = con.cursor()
+
+cur.execute("CREATE TABLE if not exists Reminders (User text, Day text, Hour text, Minute text, Message text)")
+
+cur.execute("DELETE FROM Reminders")
+con.commit()
+
+for row in cur.execute('SELECT * FROM Reminders'):
+    # our reminder fields
+    RmUser = row[0]
+    RmDay = row[1]
+    RmHour = row[2]
+    RmMinute = row[3]
+    RmMessage = row[4]
+
+    # instead of just printing, add these to the open reminders
+    print(RmUser +','+ RmDay +','+ RmHour +','+ RmMinute +','+ RmMessage)
+#===========================================================================================================================================================
+
 
 test = []
 client = discord.Client()
@@ -94,6 +118,17 @@ async def on_ready():
 async def on_message(message):
     if message.author == client.user:
         return
+#    if message.content.startswith(commandSymbol + 'displayreminders'):
+#        for row in cur.execute('SELECT * FROM Reminders'):
+##            # our reminder fields
+ #           RmUser = row[0]
+ #           RmDay = row[1]
+ #           RmHour = row[2]
+ #           RmMinute = row[3]
+ #           RmMessage = row[4]
+ #
+#            print(RmUser +','+ RmDay +','+ RmHour +','+ RmMinute +','+ RmMessage)
+
 
     if message.content.startswith(commandSymbol + "channelid"):
         default_channel = int(message.content[11: len(message.content)]) #client.get_channel()
@@ -106,12 +141,12 @@ async def on_message(message):
     if message.content.startswith(commandSymbol + 'add'):
         if (day(message.content) == -1):
             await message.channel.send("Invalid day, please try again\n $add day hour(24hr):minute")
-        elif not contains(test, message.author):
+        elif not contains(test, message.author):# If the user has not entered a reminder yet, this is called
             test.append(UsersReminders(message.author))
             test[len(test) - 1].add(day(message.content), hour(message.content), minute(message.content), msgContent(message.content))
 
             await message.channel.send("{} reminder added".format(message.author.mention))
-        elif contains(test, message.author):
+        elif contains(test, message.author):# If the user has already entered a different reminder, this is called.  BONUS FEATURE: This always adds the reminder under the most recent previous reminder's user
             test[len(test) - 1].add(day(message.content), hour(message.content), minute(message.content), msgContent(message.content))
             await message.channel.send("{} reminder added".format(message.author.mention))
 
