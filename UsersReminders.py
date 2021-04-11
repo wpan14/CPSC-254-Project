@@ -3,7 +3,7 @@ import discord
 import sqlite3
 
 class UsersReminders:
-    def __init__(self, messageauthor): #username
+    def __init__(self, db_name): #username
         # dates = {
         #     0 : monhours[], #monday
         #     1 : tuehours[], #tuesday
@@ -13,24 +13,30 @@ class UsersReminders:
         #     5 : sathours[], #saturday
         #     6 : sunhours[] #sunday
         # }
-        self.dates = dict.fromkeys(range(7), [])
-        self.messageauthor = messageauthor
-        print(self.dates)
+        self.db = sqlite3.connect(db_name)
+        self.cur = self.db.cursor()
+        self.cur.execute("CREATE TABLE if not exists Reminders (User text, Day text, Hour text, Minute text, Message text)")
+        self.cur.execute("DELETE FROM Reminders;")      # Delete to save previous results
+        #self.dates = dict.fromkeys(range(7), [])
+        #   self.messageauthor = messageauthor
+        #   print(self.dates)
 
-    def add(self, day, hour, minute, msg):
-        self.dates[day].append([datetime.time(hour, minute), msg])
+    def __del__(self):
+        self.db.commit()
+        self.db.close()
+
+    def add(self, author, day, hour, minute, msg):
+        #self.dates[day].append([datetime.time(hour, minute), msg])
 
         #==== On New Reminder ======================================================================================================================================
-        con = sqlite3.connect('DiscordReminders.db')
+        #cur = con.cursor()
 
-        cur = con.cursor()
+        ReminderRecord = (str(author), day, hour, minute, msg)
 
-        ReminderRecord = (str(self.messageauthor), day, hour, minute, msg)
+        self.cur.execute('INSERT INTO Reminders VALUES (?,?,?,?,?)', ReminderRecord)
+        self.db.commit()
 
-        cur.execute('INSERT INTO Reminders VALUES (?,?,?,?,?)', ReminderRecord)
-        con.commit()
-
-        for row in cur.execute('SELECT * FROM Reminders'):
+        for row in self.cur.execute('SELECT * FROM Reminders'):
             # our reminder fields
             RmUser = row[0]
             RmDay = row[1]
@@ -41,3 +47,9 @@ class UsersReminders:
             print(RmUser +','+ RmDay +','+ RmHour +','+ RmMinute +','+ RmMessage)
 
         #===========================================================================================================================================================
+    def getReminders(self, day, hour, minute):
+        tmpList = []
+        tmp =  self.cur.execute('SELECT * FROM Reminders WHERE Day=? AND Hour=? AND Minute=?;', (day, hour, minute))
+        for x in tmp:
+            tmpList.append(x)
+        return tmpList
