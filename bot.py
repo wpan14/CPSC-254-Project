@@ -1,7 +1,8 @@
 import discord
 import threading
 import time
-from datetime import datetime, timedelta
+import datetime
+from datetime import timedelta
 import asyncio
 from UsersReminders import UsersReminders
 from discord.ext import commands
@@ -12,43 +13,68 @@ bot = commands.Bot(command_prefix='!')
 default_channel = 812184884218953743#server-id = 812184884218953738
 index = 0
 
-reminders = UsersReminders(":memory:")#'DiscordReminders.db')
+reminders = UsersReminders('DiscordReminders.db')
 
 async def time_check():
     await bot.wait_until_ready()
     #print("working")
     while True:
-        now = datetime.now()
+        now = datetime.datetime.now()
         reminderDate = now + timedelta(minutes=1)
         diff = reminderDate.replace(second=0) - now
         totalSeconds = diff.seconds
         await asyncio.sleep(totalSeconds)
 
-        now = datetime.now()
-        for row in reminders.getReminders(str(now.isoweekday()-1), str(now.hour), str(now.minute)):
+        now = datetime.datetime.now()
+        for row in reminders.getReminders(datetime.date.today(), str(now.hour), str(now.minute)):
             print(row)
             await bot.get_channel(default_channel).send("[%s] %s" % (row[0], row[4]))
+            #delete reminder after reminder is sent
+            reminders.deleteReminder(row[0], row[1], row[2], row[3], row[4])
 
-def day(date): #!add monday 14
-    day = date[date.find(' ') + 1: date.find(' ', 5)]
+def day(date): #(string) return date
+    day = date[date.find(' ') + 1: date.find(' ', 5)]  #!add Saturday 15:03 test1  MM/DD/YYYY
     day = day.upper()
 
+    today = datetime.date.today()
+    currentWeekDay = datetime.date.weekday(today) #int monday = 0
+
     if day == "MONDAY":
-        return 0
+        return nextWeekDayDate(currentWeekDay,0)
     if day == "TUESDAY":
-        return 1
+        return nextWeekDayDate(currentWeekDay,1)
     if day == "WEDNESDAY":
-        return 2
+        return nextWeekDayDate(currentWeekDay,2)
     if day == "THURSDAY":
-        return 3
+        return nextWeekDayDate(currentWeekDay,3)
     if day == "FRIDAY":
-        return 4
+        return nextWeekDayDate(currentWeekDay,4)
     if day == "SATURDAY":
-        return 5
+        return nextWeekDayDate(currentWeekDay,5)
     if day == "SUNDAY":
-        return 6
+        return nextWeekDayDate(currentWeekDay,6)
     
-    return -1
+    try:
+        targetDate = datetime.datetime.strptime(day, '%m-%d-%Y').date()
+        return targetDate
+    except:
+        try:
+            targetDate = datetime.datetime.strptime(day, '%m/%d/%Y').date()
+            return targetDate
+        except:
+            return -1
+
+        return -1
+
+    return -2 # you should never see this
+
+def nextWeekDayDate(currentWeekDay, targetWeekDay): #(int,int) return date
+    if currentWeekDay > targetWeekDay:
+        return (datetime.date.today() + timedelta(days=(7-(currentWeekDay-targetWeekDay))))
+    elif currentWeekDay < targetWeekDay:
+        return (datetime.date.today() + timedelta(days=(targetWeekDay-currentWeekDay)))
+    elif currentWeekDay == targetWeekDay:
+        return (datetime.date.today())
 
 def hour(date):
     print(date[date.find(' ', 5) + 1 : ])
