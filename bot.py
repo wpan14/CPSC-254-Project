@@ -6,6 +6,7 @@ from datetime import timedelta
 import asyncio
 from UsersReminders import UsersReminders
 from discord.ext import commands
+import youtube_dl
 
 commandSymbol = '!' # symbol to denote a call to the bot
 bot = commands.Bot(command_prefix='!')
@@ -117,29 +118,139 @@ async def on_ready():
     print('Bot is ready.')
 
 #=== links to music playlists on YouTube ===================================================================================================
-@bot.command(name ='jazz')
+@bot.command(name='jazz')
 async def jazz(ctx):  # link to 24/7 livestream of jazz music
     await ctx.send('https://www.youtube.com/watch?v=Dx5qFachd3A')
 
 
-@bot.command(name ='pop')
+@bot.command(name='pop')
 async def pop(ctx):  # link to 24/7 livestream of pop music
     await ctx.send('https://www.youtube.com/watch?v=tmpWVmsAtOw')
 
 
-@bot.command(name ='eswing')  # link to 24/7 livestream of electro swing music
-async def eswing(ctx):
+@bot.command(name='eswing')  
+async def eswing(ctx): # link to 24/7 livestream of electro swing music
     await ctx.send('https://www.youtube.com/watch?v=bGZIeVsaQ5Y')
 
 
-@bot.command(name ='classical')  # link to 24/7 livestream of classical music
-async def classical(ctx):
+@bot.command(name='classical')  
+async def classical(ctx): # link to 24/7 livestream of classical music
     await ctx.send('https://www.youtube.com/watch?v=_3IphE64yRA')
 
 
-@bot.command(name ='funk')  # link to 24/7 livestream of funk music
-async def funk(ctx):
+@bot.command(name='funk')  
+async def funk(ctx): # link to 24/7 livestream of funk music
     await ctx.send('https://www.youtube.com/watch?v=L1vXBMmH-Fw')
+
+
+#Constants for youtube audio downloader
+youtube_dl.utils.bug_reports_message = lambda: '' 
+
+ytdl_FormOpts = {
+    'format': 'bestaudio/best',
+    'restrictfilenames': True,
+    'noplaylist': True,
+    'nocheckcertificate': True,
+    'ignoreerrors': False,
+    'logtostderr': False,
+    'quiet': True,
+    'no_warnings': True,
+    'default_search': 'auto',
+    'source_address': '0.0.0.0' # bind to ipv4 since ipv6 addresses cause issues sometimes
+}
+
+ffmpeg_options = {
+    'options': '-vn'
+}
+
+ytdl = youtube_dl.YoutubeDL(ytdl_FormOpts)
+
+#Youtuber audio downloader
+class YTDLSource(discord.PCMVolumeTransformer):
+    def __init__(self, source, *, data, volume=0.5):
+        super().__init__(source, volume)
+        self.data = data
+        self.title = data.get('title')
+        self.url = ""
+
+    @classmethod
+    async def from_url(cls, url, *, loop=None, stream=False):
+        loop = loop or asyncio.get_event_loop()
+        data = await loop.run_in_executor(None, lambda: ytdl.extract_info(url, download=not stream))
+        if 'entries' in data:
+            # take first item from a playlist
+            data = data['entries'][0]
+        filename = data['title'] if stream else ytdl.prepare_filename(data)
+        return filename
+
+
+# command lets bot join voice channel
+@bot.command(name='join')
+async def join(ctx):
+    if ctx.author.voice:
+        channel = ctx.message.author.voice.channel
+        await channel.connect()
+        await ctx.send("BotBot has joined the voice channel.")
+    else:  # Error message shown if user enters the join command without being in a voice channel.
+        await ctx.send(
+            "Error. User is not in Voice Channel. User need to be in a Voice Channel for this command to work.")
+
+
+# command makes bot leave voice channel.
+@bot.command(name='leave')
+async def leave(ctx):
+    if ctx.voice_client:
+        await ctx.voice_client.disconnect()
+        await ctx.send("BotBot has left the voice channel")
+    else:  # Error message shown if the bot is not in a voice channel.
+        await ctx.send("Error: BotBot is not in a voice channel.")
+
+
+# command plays music when given url by user
+@bot.command(name='play')
+async def play(ctx, url):
+    try:
+        server = ctx.message.guild
+        voice_channel = server.voice_client
+
+        async with ctx.typing():
+            filename = await YTDLSource.from_url(url, loop=bot.loop)
+            voice_channel.play(discord.FFmpegPCMAudio(executable="ffmpeg.exe", source=filename))
+        await ctx.send('**Now playing:** {}'.format(filename))
+    except:
+        await ctx.send("BotBot is not connected to a voice channel.")
+
+
+# command pauses the song that's currently playing
+@bot.command(name='pause')
+async def pause(ctx):
+    voice_client = ctx.message.guild.voice_client
+    if voice_client.is_playing():
+        voice_client.pause()
+    else:
+        await ctx.send("BotBot is not playing anything at the moment.")
+
+
+# command plays music that is currently paused
+@bot.command(name='resume')
+async def resume(ctx):
+    voice_client = ctx.message.guild.voice_client
+    if voice_client.is_paused():
+        voice_client.resume()
+    else:
+        await ctx.send("BotBot was not playing anything before this; use !play <YouTube URL> to play a song")
+
+
+# command stops music from playing
+@bot.command(name='stop')
+async def stop(ctx):
+    voice_client = ctx.message.guild.voice_client
+    if voice_client.is_playing():
+        voice_client.stop()
+    else:
+        await ctx.send("BotBot is not playing anything at the moment.")
+
+
 #===========================================================================================================================================
 
 
