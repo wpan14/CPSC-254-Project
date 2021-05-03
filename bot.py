@@ -5,6 +5,8 @@ import datetime
 from datetime import timedelta
 import asyncio
 from UsersReminders import UsersReminders
+from UsersReminders import timer
+
 from discord.ext import commands
 import youtube_dl
 
@@ -12,6 +14,9 @@ commandSymbol = '!' # symbol to denote a call to the bot
 bot = commands.Bot(command_prefix='!')
 default_channel = 812184884218953743#server-id = 812184884218953738
 index = 0
+
+# TimerList
+timeList = []
 
 # iniialize reminders database
 reminders = UsersReminders('DiscordReminders.db')
@@ -30,8 +35,9 @@ async def time_check():
         for row in reminders.getReminders(datetime.date.today(), str(now.hour), str(now.minute)): # loops though all reminders with a datetime now
             print(row)
             await bot.get_channel(default_channel).send("[%s] %s" % (row[0], row[4])) # sends reminder in discord
-            
+
             reminders.deleteReminder(row[0], row[1], row[2], row[3], row[4]) #delete reminder after reminder is sent
+
 
 # parses date/day of reminder out of the message to the bot.  returns date of the reminder
 def day(msg): #(string) return date
@@ -39,7 +45,7 @@ def day(msg): #(string) return date
     day = day.upper()
 
     today = datetime.date.today()
-    currentWeekDay = datetime.date.weekday(today) 
+    currentWeekDay = datetime.date.weekday(today)
 
     # if weekday was found instead of a date, return the date of the next found weekday
     if day == "MONDAY":
@@ -56,7 +62,7 @@ def day(msg): #(string) return date
         return nextWeekDayDate(currentWeekDay,5)
     if day == "SUNDAY":
         return nextWeekDayDate(currentWeekDay,6)
-    
+
     try:
         targetDate = datetime.datetime.strptime(day, '%m-%d-%Y').date() # checks for date formatted like month-day-year
         return targetDate
@@ -86,7 +92,7 @@ def hour(msg): #(string) return int
     hour = int(hour)
     if hour > 23:
         hour = 23
-    
+
     if hour < 0:
         hour = 0
 
@@ -99,7 +105,7 @@ def minute(msg): #(string) return int
 
     if minute > 59:
         minute = 59
-    
+
     if minute < 0:
         minute = 0
 
@@ -128,23 +134,23 @@ async def pop(ctx):  # link to 24/7 livestream of pop music
     await ctx.send('https://www.youtube.com/watch?v=tmpWVmsAtOw')
 
 
-@bot.command(name='eswing')  
+@bot.command(name='eswing')
 async def eswing(ctx): # link to 24/7 livestream of electro swing music
     await ctx.send('https://www.youtube.com/watch?v=bGZIeVsaQ5Y')
 
 
-@bot.command(name='classical')  
+@bot.command(name='classical')
 async def classical(ctx): # link to 24/7 livestream of classical music
     await ctx.send('https://www.youtube.com/watch?v=_3IphE64yRA')
 
 
-@bot.command(name='funk')  
+@bot.command(name='funk')
 async def funk(ctx): # link to 24/7 livestream of funk music
     await ctx.send('https://www.youtube.com/watch?v=L1vXBMmH-Fw')
 
 
 #Constants for youtube audio downloader
-youtube_dl.utils.bug_reports_message = lambda: '' 
+youtube_dl.utils.bug_reports_message = lambda: ''
 
 ytdl_FormOpts = {
     'format': 'bestaudio/best',
@@ -253,12 +259,28 @@ async def stop(ctx):
 
 #===========================================================================================================================================
 
+# Timer List check
+async def timeList_check():
+    await bot.wait_until_ready()
+    while True:
+            await asyncio.sleep(1)
+
+            for x in timeList:
+                if x.time > 0: # Any timers with time left is reduced by 1 second
+                    x.time = x.time - 1
+                if x.time == 0: # Prints timer is done for the user, then removes the timer
+                    await bot.get_channel(default_channel).send("Timer done for {}".format(x.msgAuthor))
+                    timeList.remove(x)
+
 
 
 @bot.event
 async def on_message(message):
     if message.author == bot.user: # prevents bot from ever calling itself
         return
+    if message.content.startswith(commandSymbol + 'timer'): #Timer function call
+        timeList.append(timer(message.author.mention, message.content))
+        await message.channel.send("{} timer set".format(message.author.mention))
     if message.content.startswith(commandSymbol + 'add'): # if user calls the add function to add a new reminder
         if (day(message.content) == -1): # invalid day/date
             await message.channel.send("Invalid day, please try again\n $add day hour(24hr):minute")
@@ -270,6 +292,6 @@ async def on_message(message):
 
 
 
-
 bot.loop.create_task(time_check())
+bot.loop.create_task(timeList_check())
 bot.run('ODEyMTg2Mzg4NDIxODA0MDMy.YC9FhA.TqYJpOQ4C9NiE2qZ8UDxPDoLZjo')
