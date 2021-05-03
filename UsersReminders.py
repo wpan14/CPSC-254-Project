@@ -20,7 +20,7 @@ class UsersReminders:
         print()
         print("=========== Deleting old reminder records ============")
         self.cur.execute("DELETE FROM Reminders WHERE datetime(Day,'+' || Hour || ' hours','+' || Minute ||' minutes') < datetime('now', 'localtime')")
-        self.db.commit()    
+        self.db.commit()
         #display remaining records
         for row in self.cur.execute("SELECT * FROM Reminders WHERE datetime(Day,'+' || Hour || ' hours','+' || Minute ||' minutes') < datetime()"):
             # our reminder fields
@@ -57,3 +57,10 @@ class UsersReminders:
     def deleteReminder(self, user, day, hour, minute, message): #(string,string,string,string,string) return nothing
         self.cur.execute('DELETE FROM Reminders WHERE User=? AND Day=? AND Hour=? AND Minute=? AND Message=?;', (user, day, hour, minute, message))
         self.db.commit()
+
+# Simple class used for Timer function
+class timer:
+    def __init__(self, msgAuthor,time):
+        self.msgAuthor = msgAuthor
+        temp = int(time[time.find(' ') + 1: len(time)])*60 # Computes time in minutes to seconds
+        self.time = temp
